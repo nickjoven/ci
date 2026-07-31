@@ -1,0 +1,54 @@
+name: ci-audit
+
+# Convergence, not scaffolding.
+#
+# Scaffolding at creation time fails because you can forget to use the
+# scaffold — which is exactly how this account ended up with thirteen
+# workflows on the research corpus and zero on the flagship. An audit that
+# reconciles cannot be forgotten. A new repo appears, the next run wires it.
+#
+# Opens pull requests. Never merges. Judgment stays with the human, same as
+# harmonics/substrate-maintenance.yml refuses to fix anything requiring it.
+#
+# Requires secret CI_AUDIT_TOKEN — a PAT with `repo` scope. The default
+# GITHUB_TOKEN is scoped to this repository and cannot write to others.
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"   # Mondays, 09:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Report only, do not open PRs.
+        type: boolean
+        default: false
+      max-age:
+        description: Skip repos dormant longer than this many days.
+        type: string
+        default: "180"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: audit CI coverage
+        env:
+          GH_TOKEN: ${{ secrets.CI_AUDIT_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::CI_AUDIT_TOKEN is not set — cannot audit other repositories."
+            exit 1
+          fi
+          APPLY="--apply"
+          if [ "${{ inputs.dry-run }}" = "true" ]; then APPLY=""; fi
+          python3 scripts/audit.py $APPLY --max-age "${{ inputs.max-age || '180' }}" \
+            | tee "$GITHUB_STEP_SUMMARY"

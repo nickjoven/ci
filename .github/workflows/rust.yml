@@ -1,0 +1,64 @@
+name: rust
+
+# Reusable Rust CI. Callers reference this instead of reproducing it:
+#
+#   jobs:
+#     ci:
+#       uses: nickjoven/ci/.github/workflows/rust.yml@main
+#
+# Bump an action version here and every caller inherits it. That is the
+# whole point — a repo that carries its own copy is a repo you have to
+# remember to maintain.
+
+on:
+  workflow_call:
+    inputs:
+      toolchain:
+        description: Rust toolchain to install.
+        type: string
+        default: stable
+      clippy-args:
+        description: Arguments to cargo clippy.
+        type: string
+        default: "--all-targets -- -D warnings"
+      test-args:
+        description: Arguments to cargo test. Scope this when tests need services.
+        type: string
+        default: ""
+      run-tests:
+        description: Set false for repos whose tests need unavailable services.
+        type: boolean
+        default: true
+      strict-fmt:
+        description: Fail on formatting drift. Set false during initial adoption.
+        type: boolean
+        default: true
+
+jobs:
+  check:
+    name: fmt · clippy · test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ inputs.toolchain }}
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: fmt
+        if: inputs.strict-fmt
+        run: cargo fmt --all --check
+
+      - name: fmt (advisory)
+        if: ${{ !inputs.strict-fmt }}
+        run: cargo fmt --all --check || echo "::warning::formatting drift — not failing the build"
+
+      - name: clippy
+        run: cargo clippy ${{ inputs.clippy-args }}
+
+      - name: test
+        if: inputs.run-tests
+        run: cargo test ${{ inputs.test-args }}

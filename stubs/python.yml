@@ -1,0 +1,15 @@
+name: CI
+
+# This file is a reference, not an implementation. The actual CI lives in
+# nickjoven/ci and is maintained in one place. Do not add steps here — add
+# them there, and every repo inherits them.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  ci:
+    uses: nickjoven/ci/.github/workflows/python.yml@main

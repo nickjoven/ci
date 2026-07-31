@@ -1,0 +1,32 @@
+name: CI
+
+# Adoption variant — for a repo that is not yet clean.
+#
+# The point of CI is to be silent. Switching it on in a state where it fails
+# immediately trains you to ignore the notification, which is worse than
+# having no CI at all. So: land this, get green, then fix the underlying
+# drift, then move to stubs/rust.yml.
+#
+# Verified state of ket as of 2026-07-29:
+#   fmt     1465 lines of drift        → strict-fmt: false for now
+#   clippy  15 warnings (4 autofix)   → clippy-args relaxed for now
+#   test    58 pass, 0 fail           → but only with --exclude ket-py
+#
+# ket-py sets pyo3 features = ["auto-initialize"], which embeds the
+# interpreter and links libpython. For a crate whose whole purpose is to be
+# imported *by* Python, the correct feature is "extension-module", which
+# does not link libpython. Fixing that removes the need for the exclude.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  ci:
+    uses: nickjoven/ci/.github/workflows/rust.yml@main
+    with:
+      strict-fmt: false
+      clippy-args: "--all-targets"
+      test-args: "--workspace --exclude ket-py"
