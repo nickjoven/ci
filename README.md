@@ -85,13 +85,28 @@ refuses anything requiring judgment.
 
 ## Setup
 
-The scheduled audit needs a PAT with `repo` scope as secret **`CI_AUDIT_TOKEN`**.
-The default `GITHUB_TOKEN` is scoped to this repository and cannot write to
-others.
+The scheduled audit needs **`CI_AUDIT_TOKEN`** — a fine-grained PAT with
+Contents: read/write, Pull requests: read/write, and Metadata: read, across all
+repositories. The default `GITHUB_TOKEN` will not do: it is scoped to this
+repository alone and cannot write to others.
+
+That secret is tracked by [`tokenctl`](https://github.com/nickjoven/tokenctl),
+which owns credential state for the fleet — exact minting scopes, a live probe,
+and the consequence of its absence:
 
 ```bash
-gh secret set CI_AUDIT_TOKEN --repo nickjoven/ci
+tokenctl info CI_AUDIT_TOKEN     # exact scopes, and why GITHUB_TOKEN can't work
+tokenctl set nickjoven/ci CI_AUDIT_TOKEN   # prompt → probe → store, never in argv
+tokenctl status                  # referenced-vs-set across every repo
 ```
 
+`audit.yml` guards on the empty token and exits 1 before examining anything, so
+a missing secret fails **red** rather than auditing zero repositories and
+reporting success. That is deliberate: a coverage audit that no-ops green would
+under-report coverage while looking healthy — the exact inversion this repo
+exists to prevent. tokenctl catches it beforehand; the guard catches rotation or
+deletion later. Different layers, both kept.
+
 Runs Mondays 09:00 UTC, or on demand via `workflow_dispatch` with a `dry-run`
-toggle.
+toggle. **Until the secret is set, the Monday run will fail loudly** — set it or
+disable the schedule.
